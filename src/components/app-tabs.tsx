@@ -32,7 +32,7 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="notifications" badge={unreadCount > 0 ? String(unreadCount) : undefined}>
+      <NativeTabs.Trigger name="notifications">
         <NativeTabs.Trigger.Label>Alerts</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/explore.png')}

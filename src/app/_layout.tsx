@@ -7,7 +7,7 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { AppSplashScreen } from '@/components/app-splash-screen';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { AuthProvider } from '@/providers/auth-provider';
 import { NotificationProvider } from '@/providers/notification-provider';
@@ -28,12 +28,13 @@ export default function RootLayout() {
               {/* NotificationProvider after AuthProvider so tokens are tied to a signed-in user. */}
               <NotificationProvider>
                 <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                  <AnimatedSplashOverlay />
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(app)" />
-                    <Stack.Screen name="+not-found" />
-                  </Stack>
+                  <AppSplashScreen>
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="(auth)" />
+                      <Stack.Screen name="(app)" />
+                      <Stack.Screen name="+not-found" />
+                    </Stack>
+                  </AppSplashScreen>
                 </ThemeProvider>
               </NotificationProvider>
             </AuthProvider>

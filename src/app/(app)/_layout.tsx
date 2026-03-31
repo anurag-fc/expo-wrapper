@@ -4,6 +4,7 @@ import React from 'react';
 import AppTabs from '@/components/app-tabs';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useIsAuthReady, useSession } from '@/queries/use-session';
+import { Text, View } from 'react-native';
 
 /**
  * Auth guard for all protected screens.
@@ -22,6 +23,8 @@ export default function AppLayout() {
   if (!session) {
     return <Redirect href="/(auth)/login" />;
   }
+
+  // return <View style={{ backgroundColor: "black", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Text style={{ color: "white" }}>Welcome to the app!</Text></View>;
 
   return <AppTabs />;
 }

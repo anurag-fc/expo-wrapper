@@ -13,10 +13,12 @@ import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
 import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
-
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useNotificationStore } from '@/store/notification.store';
 
 export default function AppTabs() {
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -28,13 +30,23 @@ export default function AppTabs() {
           <TabTrigger name="explore" href="/explore" asChild>
             <TabButton>Explore</TabButton>
           </TabTrigger>
+          <TabTrigger name="notifications" href="/notifications" asChild>
+            <TabButton badge={unreadCount > 0 ? unreadCount : undefined}>Alerts</TabButton>
+          </TabTrigger>
+          <TabTrigger name="profile" href="/profile" asChild>
+            <TabButton>Profile</TabButton>
+          </TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+interface TabButtonProps extends TabTriggerSlotProps {
+  badge?: number;
+}
+
+export function TabButton({ children, isFocused, badge, ...props }: TabButtonProps) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView
@@ -43,6 +55,13 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
         <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
           {children}
         </ThemedText>
+        {badge ? (
+          <View style={styles.badge}>
+            <ThemedText type="small" style={styles.badgeText}>
+              {badge}
+            </ThemedText>
+          </View>
+        ) : null}
       </ThemedView>
     </Pressable>
   );
@@ -56,7 +75,7 @@ export function CustomTabList(props: TabListProps) {
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
+          Expo Wrapper
         </ThemedText>
 
         {props.children}
@@ -105,6 +124,23 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
     borderRadius: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  badge: {
+    backgroundColor: '#208AEF',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   externalPressable: {
     flexDirection: 'row',

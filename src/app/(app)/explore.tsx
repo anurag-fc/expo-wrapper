@@ -12,7 +12,7 @@ import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export default function TabTwoScreen() {
+export default function ExploreScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const insets = {
     ...safeAreaInsets,
@@ -42,7 +42,7 @@ export default function TabTwoScreen() {
         <ThemedView style={styles.titleContainer}>
           <ThemedText type="subtitle">Explore</ThemedText>
           <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
+            This wrapper includes example{'\n'}code to help you get started.
           </ThemedText>
 
           <ExternalLink href="https://docs.expo.dev" asChild>
@@ -60,64 +60,63 @@ export default function TabTwoScreen() {
         </ThemedView>
 
         <ThemedView style={styles.sectionsWrapper}>
+          <Collapsible title="Mock mode">
+            <ThemedText type="small">
+              All API calls are mocked when{' '}
+              <ThemedText type="code">EXPO_PUBLIC_USE_MOCK=true</ThemedText> in your{' '}
+              <ThemedText type="code">.env</ThemedText> file. Services return dummy data with a
+              simulated network delay so loading states are exercised. Set it to{' '}
+              <ThemedText type="code">false</ThemedText> and fill in your Supabase credentials to
+              switch to real data.
+            </ThemedText>
+          </Collapsible>
+
+          <Collapsible title="Authentication">
+            <ThemedText type="small">
+              Full auth flow is in <ThemedText type="code">src/app/(auth)/</ThemedText> — login,
+              register, forgot password. The auth guard lives in{' '}
+              <ThemedText type="code">src/app/(app)/_layout.tsx</ThemedText> and protects all app
+              screens automatically.
+            </ThemedText>
+          </Collapsible>
+
+          <Collapsible title="State management">
+            <ThemedText type="small">
+              <ThemedText type="code">TanStack Query</ThemedText> handles server state (profiles,
+              notifications). <ThemedText type="code">Zustand</ThemedText> handles client/UI state
+              (auth session, toasts, unread count). They never overlap.
+            </ThemedText>
+          </Collapsible>
+
+          <Collapsible title="i18n">
+            <ThemedText type="small">
+              Two languages are set up: English and Spanish. Strings live in{' '}
+              <ThemedText type="code">src/lib/i18n/locales/</ThemedText>. Switch language from the
+              Profile screen. Add more languages by adding a new locale file and registering it in{' '}
+              <ThemedText type="code">src/lib/i18n/index.ts</ThemedText>.
+            </ThemedText>
+          </Collapsible>
+
+          <Collapsible title="Push notifications">
+            <ThemedText type="small">
+              <ThemedText type="code">NotificationProvider</ThemedText> handles incoming
+              notifications and deep-link routing on tap. Request permission from the UI at the
+              right moment using the{' '}
+              <ThemedText type="code">useNotificationPermission()</ThemedText> hook.
+            </ThemedText>
+          </Collapsible>
+
           <Collapsible title="File-based routing">
             <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
+              Routes are split into two groups:{' '}
+              <ThemedText type="code">(auth)/</ThemedText> for unauthenticated screens and{' '}
+              <ThemedText type="code">(app)/</ThemedText> for protected screens. The group
+              layouts handle redirects so you never need a{' '}
+              <ThemedText type="code">ProtectedRoute</ThemedText> wrapper component.
             </ThemedText>
             <ExternalLink href="https://docs.expo.dev/router/introduction">
               <ThemedText type="linkPrimary">Learn more</ThemedText>
             </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
-
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
           </Collapsible>
         </ThemedView>
         {Platform.OS === 'web' && <WebBadge />}
@@ -127,29 +126,17 @@ export default function TabTwoScreen() {
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
+  scrollView: { flex: 1 },
+  contentContainer: { flexDirection: 'row', justifyContent: 'center' },
+  container: { maxWidth: MaxContentWidth, flexGrow: 1 },
   titleContainer: {
     gap: Spacing.three,
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.six,
   },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
+  centerText: { textAlign: 'center' },
+  pressed: { opacity: 0.7 },
   linkButton: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.four,
@@ -163,19 +150,5 @@ const styles = StyleSheet.create({
     gap: Spacing.five,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
-    width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
-  },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
   },
 });

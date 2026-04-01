@@ -3,6 +3,7 @@ import { initReactI18next } from 'react-i18next';
 
 import en from './locales/en';
 import es from './locales/es';
+import hi from './locales/hi';
 
 // Importing this file is what triggers i18n initialization (side-effect import).
 // Add `import '@/lib/i18n';` to your root _layout.tsx before any component renders.
@@ -10,6 +11,7 @@ i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     es: { translation: es },
+    hi: { translation: hi },
   },
   lng: 'en',
   fallbackLng: 'en',

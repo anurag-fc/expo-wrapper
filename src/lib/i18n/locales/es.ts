@@ -40,6 +40,7 @@ const es = {
     changeLanguage: 'Idioma',
     language_en: 'English',
     language_es: 'Español',
+    language_hi: 'हिन्दी',
     updateSuccess: '¡Perfil actualizado!',
   },
   notifications: {

@@ -181,7 +181,7 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           <View style={styles.langRow}>
-            {(['en', 'es'] as const).map((lang) => {
+            {(['en','es','hi'] as const).map((lang) => {
               const active = i18n.language === lang;
               return (
                 <Pressable

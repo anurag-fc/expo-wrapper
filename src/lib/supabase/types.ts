@@ -30,6 +30,7 @@ export interface Database {
           bio?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       notifications: {
         Row: {
@@ -51,6 +52,7 @@ export interface Database {
         Update: {
           read_at?: string | null;
         };
+        Relationships: [];
       };
       push_tokens: {
         Row: {
@@ -65,12 +67,14 @@ export interface Database {
           token: string;
           platform: string;
         };
-        Update: never;
+        Update: Record<string, never>;
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
 

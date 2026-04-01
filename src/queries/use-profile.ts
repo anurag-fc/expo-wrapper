@@ -13,7 +13,10 @@ export function useProfile() {
     queryFn: () => userService.getProfile(session!.user.id),
     // Only fetch when we have a logged-in user.
     enabled: !!session?.user.id,
-    select: (result) => result.data,
+    select: (result) => {
+      if (result.error) throw result.error;
+      return result.data;
+    },
   });
 }
 
@@ -29,10 +32,10 @@ export function useUpdateProfile() {
       const key = queryKeys.profile(session!.user.id);
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData(key);
-      queryClient.setQueryData(key, (old: { data: Tables<'profiles'> } | undefined) => ({
-        data: old?.data ? { ...old.data, ...updates } : old?.data,
-        error: null,
-      }));
+      queryClient.setQueryData(key, (old: { data: Tables<'profiles'> } | undefined) => {
+        if (!old?.data) return old;
+        return { data: { ...old.data, ...updates }, error: null };
+      });
       return { previous };
     },
 

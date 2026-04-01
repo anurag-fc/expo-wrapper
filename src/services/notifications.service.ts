@@ -20,7 +20,8 @@ export const notificationsService = {
       .select('*')
       .eq('user_id', _userId)
       .order('created_at', { ascending: false });
-    return { data: (data ?? []) as Tables<'notifications'>[], error: error as Error | null };
+    if (error) return { data: [], error: error as Error };
+    return { data: (data ?? []) as Tables<'notifications'>[], error: null };
   },
 
   markAsRead: async (notificationId: string): ServiceResult<void> => {
@@ -40,11 +41,12 @@ export const notificationsService = {
 
   registerPushToken: async (userId: string, token: string): ServiceResult<void> => {
     if (IS_MOCK_MODE) {
+      await mockDelay(200);
       return { data: undefined, error: null };
     }
     const { error } = await supabase.from('push_tokens').upsert(
       { user_id: userId, token, platform: 'expo' },
-      { onConflict: 'token' },
+      { onConflict: 'user_id' },
     );
     return { data: undefined, error: error as Error | null };
   },

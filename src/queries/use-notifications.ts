@@ -11,7 +11,10 @@ export function useNotifications() {
     queryKey: queryKeys.notifications(session?.user.id ?? ''),
     queryFn: () => notificationsService.getNotifications(session!.user.id),
     enabled: !!session?.user.id,
-    select: (result) => result.data,
+    select: (result) => {
+      if (result.error) throw result.error;
+      return result.data;
+    },
   });
 }
 
@@ -22,7 +25,7 @@ export function useMarkAsRead() {
     mutationFn: (notificationId: string) => notificationsService.markAsRead(notificationId),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.notifications(session?.user.id ?? ''),
+        queryKey: queryKeys.notifications(session!.user.id),
       });
     },
   });

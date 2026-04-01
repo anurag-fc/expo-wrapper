@@ -27,7 +27,8 @@ export const userService = {
       .select('*')
       .eq('id', userId)
       .single();
-    return { data: data as Tables<'profiles'>, error: error as Error | null };
+    if (error) return { data: null as unknown as Tables<'profiles'>, error: error as Error };
+    return { data: data as Tables<'profiles'>, error: null };
   },
 
   updateProfile: async (
@@ -47,7 +48,7 @@ export const userService = {
         await AsyncStorage.setItem(MOCK_PROFILE_KEY, JSON.stringify(updated));
         return { data: updated, error: null };
       } catch {
-        return { data: MOCK_PROFILE, error: new Error('Failed to update mock profile.') };
+        return { data: null as unknown as Tables<'profiles'>, error: new Error('Failed to update mock profile.') };
       }
     }
     const { data, error } = await supabase
@@ -56,6 +57,7 @@ export const userService = {
       .eq('id', userId)
       .select()
       .single();
-    return { data: data as Tables<'profiles'>, error: error as Error | null };
+    if (error) return { data: null as unknown as Tables<'profiles'>, error: error as Error };
+    return { data: data as Tables<'profiles'>, error: null };
   },
 };

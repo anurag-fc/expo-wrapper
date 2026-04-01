@@ -10,8 +10,8 @@ export default function AppTabs() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="explore" />
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="explore" />
       <Tabs.Screen name="notifications" />
       <Tabs.Screen name="profile" />
     </Tabs>

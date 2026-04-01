@@ -1,4 +1,5 @@
 import '@/lib/i18n'; // initializes i18next before any component renders
+import 'react-native-url-polyfill/auto';
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';

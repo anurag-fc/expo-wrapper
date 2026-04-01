@@ -1,10 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 
 import { IS_MOCK_MODE } from '@/constants/config';
 import { supabase } from '@/lib/supabase/client';
 import { MOCK_CREDENTIALS, MOCK_SESSION } from '@/mocks/data';
 import { mockDelay } from '@/mocks/delay';
 import type { AppSession, AuthProvider } from '@/types/auth';
+
+// Required for OAuth redirect handling on iOS
+WebBrowser.maybeCompleteAuthSession();
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ServiceResult<T> = Promise<{ data: T; error: Error | null }>;
@@ -137,13 +142,38 @@ export const authService = {
     return { data: undefined, error: error as Error | null };
   },
 
-  signInWithOAuth: async (_provider: AuthProvider): ServiceResult<void> => {
+  signInWithOAuth: async (provider: AuthProvider): ServiceResult<void> => {
     if (IS_MOCK_MODE) {
       // Handled in the UI layer (shows an alert explaining mock mode)
       return { data: undefined, error: null };
     }
-    // TODO: Integrate expo-auth-session for real OAuth flow.
-    // See: https://supabase.com/docs/guides/auth/social-login/auth-google?platform=react-native
-    return { data: undefined, error: new Error('OAuth not yet configured.') };
+
+    // Build the redirect URI back into the app after the browser closes
+    const redirectTo = AuthSession.makeRedirectUri({ scheme: 'expowrapper' });
+
+    // Ask Supabase for the OAuth URL (skipBrowserRedirect — we open it ourselves)
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+
+    if (oauthError || !data?.url) {
+      return { data: undefined, error: (oauthError as Error) ?? new Error('No OAuth URL returned') };
+    }
+
+    // Open the provider's login page in a browser tab
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type !== 'success') {
+      // User cancelled or browser dismissed — not an error worth surfacing
+      return { data: undefined, error: null };
+    }
+
+    // Exchange the auth code in the redirect URL for a real session
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
+    if (exchangeError) return { data: undefined, error: exchangeError as Error };
+
+    // onAuthStateChange listener in AuthProvider will pick up the session automatically
+    return { data: undefined, error: null };
   },
 };

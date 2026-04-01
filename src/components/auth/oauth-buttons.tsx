@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 export function OAuthButtons() {
   const { t } = useTranslation();
 
-  const handleOAuth = (provider: 'google' | 'apple') => {
+  const handleOAuth = async (provider: 'google' | 'apple') => {
     if (IS_MOCK_MODE) {
       Alert.alert(
         'Mock Mode',
@@ -18,7 +18,8 @@ export function OAuthButtons() {
       );
       return;
     }
-    authService.signInWithOAuth(provider);
+    const { error } = await authService.signInWithOAuth(provider);
+    if (error) Alert.alert('Sign in failed', error.message);
   };
 
   return (

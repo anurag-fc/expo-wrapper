@@ -1,29 +1,48 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Accent, TabBarBg } from '@/constants/theme';
+import { Primary } from '@/constants/theme';
 
-type IconName = SymbolViewProps['name'];
-
-const TAB_ICONS: Record<string, IconName> = {
-  explore: { ios: 'magnifyingglass', android: 'search', web: 'search' },
-  index: { ios: 'arrow.2.squarepath', android: 'swap_horiz', web: 'swap_horiz' },
-  notifications: { ios: 'heart', android: 'favorite_border', web: 'favorite_border' },
-  profile: { ios: 'person.circle', android: 'person', web: 'person' },
+// ─── Tab config ───────────────────────────────────────────────────────────────
+type TabConfig = {
+  icon: SymbolViewProps['name'];
+  label: string;
 };
 
+const TABS: Record<string, TabConfig> = {
+  index: {
+    label: 'Home',
+    icon: { ios: 'house.fill', android: 'home', web: 'home' },
+  },
+  explore: {
+    label: 'Explore',
+    icon: { ios: 'safari', android: 'explore', web: 'explore' },
+  },
+  notifications: {
+    label: 'Alerts',
+    icon: { ios: 'bell.fill', android: 'notifications', web: 'notifications' },
+  },
+  profile: {
+    label: 'Profile',
+    icon: { ios: 'person.circle.fill', android: 'person', web: 'person' },
+  },
+};
+
+const INACTIVE = '#9CA3AF';
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={styles.bar}>
         {state.routes.map((route, index) => {
           const isFocused = state.index === index;
-          const icon: IconName = TAB_ICONS[route.name] ?? TAB_ICONS.index;
+          const tab       = TABS[route.name] ?? TABS.index;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -44,13 +63,22 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
             >
-              <View style={[styles.bubble, isFocused && styles.bubbleActive]}>
-                <SymbolView
-                  name={icon}
-                  size={22}
-                  tintColor={isFocused ? TabBarBg : '#FFFFFF'}
-                />
+              {/* Active dot — sits above the icon */}
+              <View style={styles.dotRow}>
+                <View style={[styles.dot, isFocused && styles.dotActive]} />
               </View>
+
+              {/* Icon */}
+              <SymbolView
+                name={tab.icon}
+                size={24}
+                tintColor={isFocused ? Primary : INACTIVE}
+              />
+
+              {/* Label */}
+              <Text style={[styles.label, isFocused && styles.labelActive]}>
+                {tab.label}
+              </Text>
             </Pressable>
           );
         })}
@@ -65,35 +93,48 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    alignItems: 'center',
-    paddingHorizontal: 24,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 12,
   },
   bar: {
     flexDirection: 'row',
-    backgroundColor: TabBarBg,
-    borderRadius: 40,
-    paddingVertical: 8,
+    paddingTop: 8,
     paddingHorizontal: 8,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 16,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
+    paddingBottom: 4,
   },
-  bubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  dotRow: {
+    height: 4,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 2,
   },
-  bubbleActive: {
-    backgroundColor: Accent,
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+  },
+  dotActive: {
+    backgroundColor: Primary,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: INACTIVE,
+  },
+  labelActive: {
+    color: Primary,
+    fontWeight: '600',
   },
 });

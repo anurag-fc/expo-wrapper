@@ -6,7 +6,7 @@ import { CustomTabBar } from './custom-tab-bar';
 export default function AppTabs() {
   return (
     <Tabs
-      initialRouteName="explore"
+      initialRouteName="index"
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >

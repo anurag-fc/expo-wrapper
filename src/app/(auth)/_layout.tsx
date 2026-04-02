@@ -15,7 +15,7 @@ export default function AuthLayout() {
 
   // Already signed in — send straight to the app.
   if (session) {
-    return <Redirect href="/(app)/" />;
+    return <Redirect href="/(app)" />;
   }
 
   return (

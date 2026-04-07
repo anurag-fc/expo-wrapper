@@ -1,55 +1,80 @@
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AddSkillSheet } from '@/components/add-skill-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { IS_MOCK_MODE } from '@/constants/config';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { CATEGORY_MAP, xpProgressInLevel } from '@/constants/skills';
+import { Accent, BottomTabInset, Primary, Spacing } from '@/constants/theme';
+import { useWeeklyProgress } from '@/queries/use-progress';
 import { useProfile } from '@/queries/use-profile';
 import { useSession } from '@/queries/use-session';
+import { useSkills } from '@/queries/use-skills';
+import { useUserStats } from '@/queries/use-user-stats';
+import { getSkillProgress } from '@/services/skills.service';
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const BG     = '#FAF8F3';
 const CARD   = '#FFFFFF';
-const CHIP   = '#EFEDE8';
-const DARK   = '#1C1C1E';
 const TEXT   = '#1A1A1A';
 const MUTED  = '#6B6868';
-const ACCENT = '#F5C533';
-const BORDER = '#E5E2DA';
+const BORDER = '#E8E5DF';
+const DARK   = '#1C1C1E';
 
-// ─── Stack items ──────────────────────────────────────────────────────────────
-type StackItem = {
-  label: string;
-  value: string;
-  icon: SymbolViewProps['name'];
-};
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-const STACK: StackItem[] = [
-  { label: 'Auth',         value: 'Supabase',       icon: { ios: 'lock.shield',               android: 'security',      web: 'security' } },
-  { label: 'Server state', value: 'TanStack Query',  icon: { ios: 'arrow.triangle.2.circlepath', android: 'sync',        web: 'sync' } },
-  { label: 'Client state', value: 'Zustand',         icon: { ios: 'memorychip',                android: 'memory',        web: 'memory' } },
-  { label: 'i18n',         value: 'i18next',         icon: { ios: 'globe',                     android: 'language',      web: 'language' } },
-  { label: 'Push',         value: 'expo-notify',     icon: { ios: 'bell.badge',                android: 'notifications', web: 'notifications' } },
-  { label: 'Mock mode',    value: IS_MOCK_MODE ? 'ON' : 'OFF', icon: { ios: 'switch.2',         android: 'toggle_on',     web: 'toggle_on' } },
-];
+function get7Days(): { dateStr: string; label: string; isToday: boolean }[] {
+  const result = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    result.push({
+      dateStr: d.toLocaleDateString('en-CA'),
+      label:   DAY_LABELS[d.getDay()],
+      isToday: i === 0,
+    });
+  }
+  return result;
+}
 
-// ─── Stack cell ───────────────────────────────────────────────────────────────
-function StackCell({ item }: { item: StackItem }) {
-  const isMockOn = item.label === 'Mock mode' && IS_MOCK_MODE;
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function WeeklyStrip({ progressLogs, streak }: {
+  progressLogs: { logged_at: string }[] | undefined | null;
+  streak: number;
+}) {
+  const days = get7Days();
+  const loggedDates = new Set(
+    (progressLogs ?? []).map((l) => l.logged_at.split('T')[0]),
+  );
+
   return (
-    <View style={styles.cell}>
-      <View style={styles.cellIcon}>
-        <SymbolView name={item.icon} size={16} tintColor={MUTED} />
+    <View style={styles.weekCard}>
+      <View style={styles.weekHeader}>
+        <ThemedText style={styles.sectionTitle}>This Week</ThemedText>
+        <View style={styles.streakPill}>
+          <ThemedText style={styles.streakText}>🔥 {streak}</ThemedText>
+        </View>
       </View>
-      <ThemedText style={styles.cellLabel}>{item.label}</ThemedText>
-      <View style={styles.cellBottom}>
-        <ThemedText style={styles.cellValue}>{item.value}</ThemedText>
-        {isMockOn && <View style={styles.activeDot} />}
+      <View style={styles.weekDays}>
+        {days.map((d) => {
+          const logged  = loggedDates.has(d.dateStr);
+          return (
+            <View key={d.dateStr} style={styles.dayCol}>
+              <View style={[
+                styles.dayDot,
+                logged     && styles.dayDotFilled,
+                d.isToday  && !logged && styles.dayDotToday,
+              ]} />
+              <ThemedText style={[styles.dayLabel, d.isToday && styles.dayLabelToday]}>
+                {d.label}
+              </ThemedText>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
@@ -57,320 +82,381 @@ function StackCell({ item }: { item: StackItem }) {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const { t } = useTranslation();
-  const session = useSession();
-  const { data: profile, isLoading } = useProfile();
+  const session  = useSession();
+  const { data: profile }    = useProfile();
+  const { data: skills, isLoading: skillsLoading }      = useSkills();
+  const { data: progressLogs }  = useWeeklyProgress();
+  const { data: userStats }     = useUserStats();
+  const [showAddSheet, setShowAddSheet] = useState(false);
 
-  const firstName   = profile?.full_name?.split(' ')[0] ?? 'there';
+  const firstName   = profile?.full_name?.split(' ')[0] ?? session?.user.email?.split('@')[0] ?? 'there';
   const displayName = profile?.full_name ?? session?.user.email ?? '…';
+
+  const activeSkills    = (skills ?? []).filter((s) => !s.skill_stats?.is_completed);
+  const heroSkill       = activeSkills[0] ?? null;
+  const heroProgress    = heroSkill ? getSkillProgress(heroSkill) : 0;
+  const heroCat         = heroSkill ? CATEGORY_MAP[heroSkill.category as keyof typeof CATEGORY_MAP] : null;
+
+  const xpInfo = userStats ? xpProgressInLevel(userStats.xp) : null;
 
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']}>
-        {/* ── Top bar ── */}
         <View style={styles.topBar}>
-          <View style={styles.topBarLeft}>
-            <View style={styles.statusPill}>
-              <View style={styles.statusDot} />
-              <ThemedText style={styles.statusText}>Dashboard</ThemedText>
-            </View>
+          <View>
+            <ThemedText style={styles.greeting}>Hey, {firstName} 👋</ThemedText>
+            {userStats && (
+              <ThemedText style={styles.levelTag}>
+                Level {userStats.level} · {userStats.xp} XP
+              </ThemedText>
+            )}
           </View>
           <Avatar uri={profile?.avatar_url} name={displayName} size={40} />
         </View>
+
+        {/* XP progress bar */}
+        {xpInfo && (
+          <View style={styles.xpBarWrap}>
+            <View style={styles.xpBarTrack}>
+              <View style={[styles.xpBarFill, { width: `${xpInfo.pct}%` as `${number}%` }]} />
+            </View>
+            <ThemedText style={styles.xpBarLabel}>{xpInfo.current}/{xpInfo.total} XP</ThemedText>
+          </View>
+        )}
       </SafeAreaView>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        {/* ── Greeting ── */}
-        <View style={styles.greeting}>
-          <ThemedText style={styles.greetingHello}>
-            {t('home.greeting', { name: firstName })}
-          </ThemedText>
-          <ThemedText style={styles.greetingEmail}>{session?.user.email}</ThemedText>
-        </View>
-
-        {/* ── Mock banner ── */}
-        {IS_MOCK_MODE && (
-          <View style={styles.banner}>
-            <View style={styles.bannerIcon}>
-              <SymbolView
-                name={{ ios: 'exclamationmark.triangle', android: 'warning', web: 'warning' }}
-                size={14}
-                tintColor={TEXT}
-              />
-            </View>
-            <View style={styles.bannerBody}>
-              <ThemedText style={styles.bannerTitle}>Mock mode is ON</ThemedText>
-              <ThemedText style={styles.bannerDesc}>
-                Set EXPO_PUBLIC_USE_MOCK=false in .env to connect Supabase.
-              </ThemedText>
-            </View>
-          </View>
-        )}
-
-        {/* ── Profile card ── */}
-        <View style={styles.sectionLabel}>
-          <View style={styles.sectionDot} />
-          <ThemedText style={styles.sectionTitle}>Profile</ThemedText>
-        </View>
-
-        {isLoading ? (
-          <View style={styles.loadingCard}>
+        {/* ── Continue Learning hero ── */}
+        {skillsLoading ? (
+          <View style={styles.heroCard}>
             <LoadingSpinner />
           </View>
-        ) : (
-          <View style={styles.profileCard}>
-            <View style={styles.profileTop}>
-              <Avatar uri={profile?.avatar_url} name={displayName} size={52} />
-              <View style={styles.profileMeta}>
-                <ThemedText style={styles.profileName}>
-                  {profile?.full_name ?? '—'}
-                </ThemedText>
-                <ThemedText style={styles.profileEmail}>{session?.user.email}</ThemedText>
-              </View>
-            </View>
-            {profile?.bio ? (
-              <>
-                <View style={styles.divider} />
-                <View style={styles.profileBioRow}>
-                  <ThemedText style={styles.bioLabel}>Bio</ThemedText>
-                  <ThemedText style={styles.bioValue} numberOfLines={3}>
-                    {profile.bio}
+        ) : heroSkill ? (
+          <View style={styles.heroCard}>
+            <View style={styles.heroTop}>
+              <ThemedText style={styles.heroEyebrow}>Continue Learning</ThemedText>
+              {heroCat && (
+                <View style={[styles.heroCatPill, { backgroundColor: heroCat.color + '30' }]}>
+                  <View style={[styles.heroCatDot, { backgroundColor: heroCat.color }]} />
+                  <ThemedText style={[styles.heroCatText, { color: heroCat.color }]}>
+                    {heroCat.label}
                   </ThemedText>
                 </View>
-              </>
-            ) : null}
+              )}
+            </View>
+            <ThemedText style={styles.heroName} numberOfLines={2}>{heroSkill.name}</ThemedText>
+            {heroSkill.source && (
+              <ThemedText style={styles.heroSource}>{heroSkill.source}</ThemedText>
+            )}
+            <View style={styles.heroProgressRow}>
+              <View style={styles.heroTrack}>
+                <View style={[styles.heroFill, { width: `${heroProgress}%` as `${number}%` }]} />
+              </View>
+              <ThemedText style={styles.heroPercent}>{heroProgress}%</ThemedText>
+            </View>
+            <ThemedText style={styles.heroSub}>
+              {heroSkill.skill_stats?.completed_lessons ?? 0} of {heroSkill.total_lessons} lessons
+            </ThemedText>
+          </View>
+        ) : (
+          <View style={styles.emptyHero}>
+            <SymbolView
+              name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
+              size={32}
+              tintColor={Primary}
+            />
+            <ThemedText style={styles.emptyHeroTitle}>No skills yet</ThemedText>
+            <ThemedText style={styles.emptyHeroSub}>Add your first skill to get started</ThemedText>
+            <Pressable
+              style={styles.emptyHeroBtn}
+              onPress={() => setShowAddSheet(true)}
+            >
+              <ThemedText style={styles.emptyHeroBtnText}>Add a Skill</ThemedText>
+            </Pressable>
           </View>
         )}
 
-        {/* ── Stack grid ── */}
-        <View style={styles.sectionLabel}>
-          <View style={styles.sectionDot} />
-          <ThemedText style={styles.sectionTitle}>What's wired up</ThemedText>
+        {/* ── Weekly activity ── */}
+        <WeeklyStrip
+          progressLogs={progressLogs as { logged_at: string }[] | null | undefined}
+          streak={userStats?.current_streak ?? 0}
+        />
+
+        {/* ── My Skills ── */}
+        <View style={styles.sectionRow}>
+          <ThemedText style={styles.sectionTitle}>My Skills</ThemedText>
+          <Pressable style={styles.addBtn} onPress={() => setShowAddSheet(true)}>
+            <SymbolView
+              name={{ ios: 'plus', android: 'add', web: 'add' }}
+              size={14}
+              tintColor={Primary}
+            />
+            <ThemedText style={styles.addBtnText}>Add</ThemedText>
+          </Pressable>
         </View>
 
-        <View style={styles.grid}>
-          {STACK.map((item) => (
-            <StackCell key={item.label} item={item} />
-          ))}
-        </View>
+        {skillsLoading ? (
+          <View style={styles.loadingCard}><LoadingSpinner /></View>
+        ) : (skills ?? []).length === 0 ? (
+          <View style={styles.emptyList}>
+            <ThemedText style={styles.emptyListText}>No skills tracked yet</ThemedText>
+          </View>
+        ) : (
+          <View style={styles.skillList}>
+            {(skills ?? []).map((skill) => {
+              const pct = getSkillProgress(skill);
+              const cat = CATEGORY_MAP[skill.category as keyof typeof CATEGORY_MAP];
+              const isCompleted = skill.skill_stats?.is_completed ?? false;
+              return (
+                <View key={skill.id} style={[styles.skillRow, isCompleted && styles.skillRowDone]}>
+                  <View style={[styles.catDot, { backgroundColor: cat?.color ?? MUTED }]} />
+                  <View style={styles.skillMeta}>
+                    <View style={styles.skillNameRow}>
+                      <ThemedText style={[styles.skillName, isCompleted && styles.skillNameDone]} numberOfLines={1}>
+                        {skill.name}
+                      </ThemedText>
+                      {isCompleted && (
+                        <SymbolView
+                          name={{ ios: 'checkmark.seal.fill', android: 'verified', web: 'verified' }}
+                          size={13}
+                          tintColor={Accent}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.progressRow}>
+                      <View style={styles.progressTrack}>
+                        <View style={[
+                          styles.progressFill,
+                          { width: `${pct}%` as `${number}%`, backgroundColor: cat?.color ?? Primary },
+                        ]} />
+                      </View>
+                      <ThemedText style={styles.progressPct}>{pct}%</ThemedText>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
+
+      <AddSkillSheet visible={showAddSheet} onClose={() => setShowAddSheet(false)} />
     </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: BG,
-  },
+  screen: { flex: 1, backgroundColor: BG },
 
-  // Top bar
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
-  topBarLeft: { flexDirection: 'row', alignItems: 'center' },
-  statusPill: {
+  greeting: { fontSize: 22, fontWeight: '700', color: TEXT, letterSpacing: -0.4 },
+  levelTag: { fontSize: 12, color: MUTED, marginTop: 2 },
+
+  xpBarWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    backgroundColor: DARK,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: 8,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: 12,
   },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: ACCENT,
+  xpBarTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: BORDER,
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  statusText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  xpBarFill: {
+    height: 4,
+    backgroundColor: Primary,
+    borderRadius: 2,
   },
+  xpBarLabel: { fontSize: 11, color: MUTED, flexShrink: 0 },
 
-  // Scroll content
   content: {
     paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
+    paddingTop: 4,
     paddingBottom: BottomTabInset + Spacing.four,
-    gap: Spacing.three,
-  },
-
-  // Greeting
-  greeting: { gap: 4 },
-  greetingHello: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: TEXT,
-    letterSpacing: -0.5,
-  },
-  greetingEmail: {
-    fontSize: 13,
-    color: MUTED,
-  },
-
-  // Banner
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: CARD,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  bannerIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: ACCENT + '30',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  bannerBody: { flex: 1, gap: 2 },
-  bannerTitle: { fontSize: 13, fontWeight: '700', color: TEXT },
-  bannerDesc: { fontSize: 12, color: MUTED, lineHeight: 17 },
-
-  // Section label
-  sectionLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: -4,
-  },
-  sectionDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: ACCENT,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: MUTED,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-
-  // Loading card
-  loadingCard: {
-    backgroundColor: CARD,
-    borderRadius: 20,
-    padding: Spacing.four,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-
-  // Profile card
-  profileCard: {
-    backgroundColor: CARD,
-    borderRadius: 20,
-    padding: 18,
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  profileTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 14,
   },
-  profileMeta: { flex: 1, gap: 3 },
-  profileName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: TEXT,
-  },
-  profileEmail: {
-    fontSize: 12,
-    color: MUTED,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: BORDER,
-  },
-  profileBioRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  bioLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: MUTED,
-    flexShrink: 0,
-  },
-  bioValue: {
-    fontSize: 13,
-    color: TEXT,
-    flex: 1,
-    textAlign: 'right',
-  },
 
-  // Grid
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  // Hero card
+  heroCard: {
+    backgroundColor: Primary,
+    borderRadius: 22,
+    padding: 20,
     gap: 10,
+    minHeight: 80,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  cell: {
-    width: '47.5%',
+  heroTop: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroEyebrow: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 0.6 },
+  heroCatPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  heroCatDot: { width: 5, height: 5, borderRadius: 2.5 },
+  heroCatText: { fontSize: 11, fontWeight: '600' },
+  heroName: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.3, width: '100%' },
+  heroSource: { fontSize: 12, color: 'rgba(255,255,255,0.65)', width: '100%' },
+  heroProgressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroTrack: {
+    flex: 1,
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  heroFill: { height: 5, backgroundColor: '#FFFFFF', borderRadius: 3 },
+  heroPercent: { fontSize: 13, fontWeight: '700', color: '#FFFFFF', flexShrink: 0 },
+  heroSub: { fontSize: 12, color: 'rgba(255,255,255,0.65)', width: '100%' },
+
+  emptyHero: {
     backgroundColor: CARD,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 22,
+    padding: 28,
+    alignItems: 'center',
     gap: 8,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  emptyHeroTitle: { fontSize: 17, fontWeight: '700', color: TEXT },
+  emptyHeroSub:   { fontSize: 13, color: MUTED, textAlign: 'center' },
+  emptyHeroBtn: {
+    marginTop: 6,
+    backgroundColor: Primary,
+    paddingHorizontal: 24,
+    paddingVertical: 11,
+    borderRadius: 14,
+  },
+  emptyHeroBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+
+  // Weekly strip
+  weekCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 16,
+    gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
   },
-  cellIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: CHIP,
-    alignItems: 'center',
-    justifyContent: 'center',
+  weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  streakPill: {
+    backgroundColor: DARK,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  cellLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: MUTED,
+  streakText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  weekDays: { flexDirection: 'row', justifyContent: 'space-between' },
+  dayCol: { alignItems: 'center', gap: 5 },
+  dayDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F0EEE9',
+    borderWidth: 1.5,
+    borderColor: BORDER,
   },
-  cellBottom: {
+  dayDotFilled: { backgroundColor: Primary, borderColor: Primary },
+  dayDotToday:  { borderColor: Primary, backgroundColor: 'transparent' },
+  dayLabel: { fontSize: 11, fontWeight: '500', color: MUTED },
+  dayLabelToday: { color: Primary, fontWeight: '700' },
+
+  // Section row
+  sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: -4,
   },
-  cellValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: TEXT,
-    flexShrink: 1,
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: TEXT, letterSpacing: -0.2 },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Primary + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: ACCENT,
-    flexShrink: 0,
+  addBtnText: { fontSize: 13, fontWeight: '600', color: Primary },
+
+  // Loading / empty
+  loadingCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
   },
+  emptyList: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  emptyListText: { fontSize: 14, color: MUTED },
+
+  // Skill list
+  skillList: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  skillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
+  },
+  skillRowDone: { opacity: 0.6 },
+  catDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  skillMeta: { flex: 1, gap: 6 },
+  skillNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  skillName: { flex: 1, fontSize: 14, fontWeight: '600', color: TEXT },
+  skillNameDone: { textDecorationLine: 'line-through' },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  progressTrack: {
+    flex: 1,
+    height: 4,
+    backgroundColor: BORDER,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: { height: 4, borderRadius: 2 },
+  progressPct: { fontSize: 11, fontWeight: '600', color: MUTED, width: 30, textAlign: 'right' },
 });

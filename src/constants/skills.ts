@@ -20,7 +20,7 @@ export const CATEGORIES: Category[] = [
     id: 'design',
     label: 'Design',
     color: '#C084FC',
-    icon: { ios: 'pencil.ruler', android: 'brush', web: 'brush' },
+    icon: { ios: 'pencil.and.ruler', android: 'brush', web: 'brush' },
   },
   {
     id: 'code',

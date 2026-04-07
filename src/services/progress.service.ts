@@ -129,15 +129,20 @@ export const progressService = {
     const totalDone = (logsData ?? []).reduce((sum, l) => sum + l.lessons_done, 0);
 
     // 3. Get skill to check total_lessons and current stats
-    const { data: skillData, error: skillError } = await supabase
+    const { data: rawSkill, error: skillError } = await supabase
       .from('skills')
       .select('total_lessons, skill_stats(*)')
       .eq('id', skillId)
       .single();
     if (skillError) return { data: undefined, error: skillError as Error };
 
+    const skillData = rawSkill as unknown as {
+      total_lessons: number;
+      skill_stats: Tables<'skill_stats'> | null;
+    } | null;
+
     const isNowComplete = totalDone >= (skillData?.total_lessons ?? 1);
-    const wasComplete   = (skillData?.skill_stats as Tables<'skill_stats'> | null)?.is_completed ?? false;
+    const wasComplete   = skillData?.skill_stats?.is_completed ?? false;
 
     // 4. Update skill_stats
     const { error: statsError } = await supabase

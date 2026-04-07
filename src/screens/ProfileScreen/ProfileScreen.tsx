@@ -7,27 +7,32 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { CATEGORY_MAP, xpProgressInLevel } from '@/constants/skills';
+import { Accent, BottomTabInset, Primary, Spacing } from '@/constants/theme';
 import i18n from '@/lib/i18n';
 import { useProfile, useUpdateProfile } from '@/queries/use-profile';
 import { useSignOut } from '@/queries/use-session';
+import { useSkills } from '@/queries/use-skills';
+import { useUserStats } from '@/queries/use-user-stats';
+import { getSkillProgress } from '@/services/skills.service';
 
-// ─── Tokens (same as HomeScreen) ─────────────────────────────────────────────
+// ─── Tokens ───────────────────────────────────────────────────────────────────
 const BG     = '#FAF8F3';
 const CARD   = '#FFFFFF';
-const CHIP   = '#EFEDE8';
+const CHIP   = '#F0EEE9';
 const DARK   = '#1C1C1E';
 const TEXT   = '#1A1A1A';
 const MUTED  = '#6B6868';
-const ACCENT = '#F5C533';
-const BORDER = '#E5E2DA';
+const BORDER = '#E8E5DF';
 const DANGER = '#EF4444';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
-  const { data: profile, isLoading } = useProfile();
+  const { data: profile, isLoading }          = useProfile();
   const { mutate: updateProfile, isPending: isSaving } = useUpdateProfile();
-  const { mutate: signOut, isPending: isSigningOut } = useSignOut();
+  const { mutate: signOut, isPending: isSigningOut }   = useSignOut();
+  const { data: userStats }                   = useUserStats();
+  const { data: skills }                      = useSkills();
 
   const [fullName, setFullName] = useState('');
   const [bio, setBio]           = useState('');
@@ -53,20 +58,17 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const displayName = profile?.full_name ?? profile?.email ?? '…';
+  const displayName   = profile?.full_name ?? profile?.email ?? '…';
+  const completedSkills = (skills ?? []).filter((s) => s.skill_stats?.is_completed);
+  const xpInfo        = userStats ? xpProgressInLevel(userStats.xp) : null;
 
   if (isLoading) {
-    return (
-      <View style={[styles.screen, styles.center]}>
-        <LoadingSpinner />
-      </View>
-    );
+    return <View style={[styles.screen, styles.center]}><LoadingSpinner /></View>;
   }
 
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']}>
-        {/* ── Top bar ── */}
         <View style={styles.topBar}>
           <View style={styles.statusPill}>
             <View style={styles.statusDot} />
@@ -80,8 +82,7 @@ export default function ProfileScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-
-        {/* ── Hero avatar ── */}
+        {/* ── Hero ── */}
         <View style={styles.hero}>
           <View style={styles.avatarWrap}>
             <Avatar uri={profile?.avatar_url} name={displayName} size={72} />
@@ -99,21 +100,50 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Edit section ── */}
+        {/* ── Stats row ── */}
+        {userStats && (
+          <View style={styles.statsRow}>
+            <View style={styles.statCell}>
+              <ThemedText style={styles.statValue}>🔥 {userStats.current_streak}</ThemedText>
+              <ThemedText style={styles.statLabel}>Streak</ThemedText>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCell}>
+              <ThemedText style={styles.statValue}>{completedSkills.length}</ThemedText>
+              <ThemedText style={styles.statLabel}>Completed</ThemedText>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCell}>
+              <ThemedText style={styles.statValue}>{userStats.xp}</ThemedText>
+              <ThemedText style={styles.statLabel}>Total XP</ThemedText>
+            </View>
+          </View>
+        )}
+
+        {/* ── XP bar ── */}
+        {xpInfo && userStats && (
+          <View style={styles.xpCard}>
+            <View style={styles.xpHeader}>
+              <ThemedText style={styles.xpLabel}>Level {userStats.level}</ThemedText>
+              <ThemedText style={styles.xpSub}>{xpInfo.current} / {xpInfo.total} XP</ThemedText>
+            </View>
+            <View style={styles.xpTrack}>
+              <View style={[styles.xpFill, { width: `${xpInfo.pct}%` as `${number}%` }]} />
+            </View>
+            <ThemedText style={styles.xpNext}>{xpInfo.total - xpInfo.current} XP to Level {userStats.level + 1}</ThemedText>
+          </View>
+        )}
+
+        {/* ── Edit info ── */}
         <View style={styles.sectionLabel}>
           <View style={styles.sectionDot} />
           <ThemedText style={styles.sectionTitle}>Edit info</ThemedText>
         </View>
 
         <View style={styles.card}>
-          {/* Name field */}
           <View style={styles.fieldWrap}>
             <View style={styles.fieldHeader}>
-              <SymbolView
-                name={{ ios: 'person', android: 'person', web: 'person' }}
-                size={13}
-                tintColor={MUTED}
-              />
+              <SymbolView name={{ ios: 'person', android: 'person', web: 'person' }} size={13} tintColor={MUTED} />
               <ThemedText style={styles.fieldLabel}>{t('profile.fullName')}</ThemedText>
             </View>
             <TextInput
@@ -128,14 +158,9 @@ export default function ProfileScreen() {
 
           <View style={styles.divider} />
 
-          {/* Bio field */}
           <View style={styles.fieldWrap}>
             <View style={styles.fieldHeader}>
-              <SymbolView
-                name={{ ios: 'text.alignleft', android: 'notes', web: 'notes' }}
-                size={13}
-                tintColor={MUTED}
-              />
+              <SymbolView name={{ ios: 'text.alignleft', android: 'notes', web: 'notes' }} size={13} tintColor={MUTED} />
               <ThemedText style={styles.fieldLabel}>{t('profile.bio')}</ThemedText>
             </View>
             <TextInput
@@ -152,28 +177,21 @@ export default function ProfileScreen() {
 
           <View style={styles.divider} />
 
-          {/* Save button */}
           <Pressable
             onPress={handleSave}
             disabled={isSaving}
             style={({ pressed }) => [styles.saveBtn, { opacity: isSaving || pressed ? 0.7 : 1 }]}
           >
-            {isSaving ? (
-              <LoadingSpinner />
-            ) : (
+            {isSaving ? <LoadingSpinner /> : (
               <>
-                <SymbolView
-                  name={{ ios: 'checkmark', android: 'check', web: 'check' }}
-                  size={14}
-                  tintColor={TEXT}
-                />
+                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={14} tintColor={TEXT} />
                 <ThemedText style={styles.saveBtnText}>{t('profile.saveChanges')}</ThemedText>
               </>
             )}
           </Pressable>
         </View>
 
-        {/* ── Language section ── */}
+        {/* ── Language ── */}
         <View style={styles.sectionLabel}>
           <View style={styles.sectionDot} />
           <ThemedText style={styles.sectionTitle}>{t('profile.changeLanguage')}</ThemedText>
@@ -181,7 +199,7 @@ export default function ProfileScreen() {
 
         <View style={styles.card}>
           <View style={styles.langRow}>
-            {(['en','es','hi'] as const).map((lang) => {
+            {(['en', 'es', 'hi'] as const).map((lang) => {
               const active = i18n.language === lang;
               return (
                 <Pressable
@@ -199,6 +217,41 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ── Completed Skills ── */}
+        {completedSkills.length > 0 && (
+          <>
+            <View style={styles.sectionLabel}>
+              <View style={styles.sectionDot} />
+              <ThemedText style={styles.sectionTitle}>Completed Skills</ThemedText>
+            </View>
+            <View style={styles.card}>
+              {completedSkills.map((skill, i) => {
+                const cat = CATEGORY_MAP[skill.category as keyof typeof CATEGORY_MAP];
+                const rating = skill.skill_stats?.star_rating ?? 0;
+                return (
+                  <View key={skill.id}>
+                    {i > 0 && <View style={styles.divider} />}
+                    <View style={styles.completedRow}>
+                      <View style={[styles.completedDot, { backgroundColor: cat?.color ?? MUTED }]} />
+                      <View style={styles.completedMeta}>
+                        <ThemedText style={styles.completedName}>{skill.name}</ThemedText>
+                        <ThemedText style={styles.completedSource}>{skill.source ?? cat?.label}</ThemedText>
+                      </View>
+                      <View style={styles.stars}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <ThemedText key={star} style={[styles.star, star <= rating && styles.starFilled]}>
+                            ★
+                          </ThemedText>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+
         {/* ── Sign out ── */}
         <Pressable
           onPress={handleSignOut}
@@ -212,17 +265,16 @@ export default function ProfileScreen() {
           />
           <ThemedText style={styles.signOutText}>{t('auth.signOut')}</ThemedText>
         </Pressable>
-
       </ScrollView>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
   center: { alignItems: 'center', justifyContent: 'center' },
 
-  // Top bar
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -238,10 +290,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: ACCENT },
+  statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Accent },
   statusText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
 
-  // Scroll
   content: {
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
@@ -250,28 +301,57 @@ const styles = StyleSheet.create({
   },
 
   // Hero
-  hero: {
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: Spacing.two,
-  },
+  hero: { alignItems: 'center', gap: 12, paddingVertical: 8 },
   avatarWrap: { position: 'relative' },
   avatarBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: ACCENT,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: BG,
+    position: 'absolute', bottom: 0, right: 0,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: Accent,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: BG,
   },
-  heroText: { alignItems: 'center', gap: 4 },
-  heroName: { fontSize: 20, fontWeight: '700', color: TEXT, letterSpacing: -0.3 },
+  heroText:  { alignItems: 'center', gap: 4 },
+  heroName:  { fontSize: 20, fontWeight: '700', color: TEXT, letterSpacing: -0.3 },
   heroEmail: { fontSize: 13, color: MUTED },
+
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  statCell:    { flex: 1, alignItems: 'center', gap: 4 },
+  statValue:   { fontSize: 18, fontWeight: '700', color: TEXT },
+  statLabel:   { fontSize: 11, color: MUTED, fontWeight: '500' },
+  statDivider: { width: StyleSheet.hairlineWidth, backgroundColor: BORDER },
+
+  // XP card
+  xpCard: {
+    backgroundColor: CARD,
+    borderRadius: 20,
+    padding: 16,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  xpHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  xpLabel:  { fontSize: 14, fontWeight: '700', color: TEXT },
+  xpSub:    { fontSize: 12, color: MUTED },
+  xpTrack:  {
+    height: 6, backgroundColor: BORDER,
+    borderRadius: 3, overflow: 'hidden',
+  },
+  xpFill:   { height: 6, backgroundColor: Primary, borderRadius: 3 },
+  xpNext:   { fontSize: 12, color: MUTED },
 
   // Section label
   sectionLabel: {
@@ -280,13 +360,10 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: -4,
   },
-  sectionDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: ACCENT },
+  sectionDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: Accent },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: MUTED,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    fontSize: 12, fontWeight: '600', color: MUTED,
+    textTransform: 'uppercase', letterSpacing: 0.8,
   },
 
   // Card
@@ -303,70 +380,56 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginHorizontal: 16 },
 
   // Fields
-  fieldWrap: { padding: 16, gap: 8 },
+  fieldWrap:   { padding: 16, gap: 8 },
   fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
+  fieldLabel:  { fontSize: 12, fontWeight: '600', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: TEXT,
-    backgroundColor: CHIP,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    fontSize: 15, fontWeight: '500', color: TEXT,
+    backgroundColor: CHIP, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 11,
   },
-  inputMulti: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-    paddingTop: 11,
-  },
+  inputMulti: { minHeight: 80, textAlignVertical: 'top', paddingTop: 11 },
 
-  // Save button
   saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    margin: 16,
-    backgroundColor: ACCENT,
-    borderRadius: 14,
-    paddingVertical: 13,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, margin: 16, backgroundColor: Accent,
+    borderRadius: 14, paddingVertical: 13,
   },
   saveBtnText: { fontSize: 14, fontWeight: '700', color: TEXT },
 
   // Language
   langRow: { flexDirection: 'row', padding: 10, gap: 8 },
   langBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: CHIP,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 12, borderRadius: 14, backgroundColor: CHIP,
   },
   langBtnActive: { backgroundColor: DARK },
-  langBtnText: { fontSize: 14, fontWeight: '600', color: MUTED },
+  langBtnText:   { fontSize: 14, fontWeight: '600', color: MUTED },
   langBtnTextActive: { color: '#FFFFFF' },
-  langActiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ACCENT },
+  langActiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Accent },
+
+  // Completed skills
+  completedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+  },
+  completedDot:  { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  completedMeta: { flex: 1, gap: 2 },
+  completedName: { fontSize: 14, fontWeight: '600', color: TEXT },
+  completedSource: { fontSize: 12, color: MUTED },
+  stars:         { flexDirection: 'row', gap: 1 },
+  star:          { fontSize: 14, color: BORDER },
+  starFilled:    { color: Accent },
 
   // Sign out
   signOutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: CARD,
-    borderRadius: 20,
-    paddingVertical: 15,
-    borderWidth: 1,
-    borderColor: DANGER + '30',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, backgroundColor: CARD, borderRadius: 20,
+    paddingVertical: 15, borderWidth: 1, borderColor: DANGER + '30',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
   signOutText: { fontSize: 14, fontWeight: '600', color: DANGER },
 });

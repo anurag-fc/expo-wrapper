@@ -1,59 +1,102 @@
+import Constants from 'expo-constants';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
-import { Avatar } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { BottomTabInset, Spacing } from '@/constants/theme';
-import i18n from '@/lib/i18n';
 import { useProfile, useUpdateProfile } from '@/queries/use-profile';
 import { useSignOut } from '@/queries/use-session';
 
-// ─── Tokens (same as HomeScreen) ─────────────────────────────────────────────
-const BG     = '#FAF8F3';
-const CARD   = '#FFFFFF';
-const CHIP   = '#EFEDE8';
-const DARK   = '#1C1C1E';
-const TEXT   = '#1A1A1A';
-const MUTED  = '#6B6868';
-const ACCENT = '#F5C533';
-const BORDER = '#E5E2DA';
-const DANGER = '#EF4444';
+// ─── Design tokens (oracle theme) ────────────────────────────────────────────
+const BG      = '#F7F5F2';
+const CARD    = '#FFFFFF';
+const PRIMARY = '#A3B18A'; // sage green
+const TEXT    = '#2F2F2F';
+const MUTED   = '#9E9E9E';
+const BORDER  = '#EBEBEB';
+const CHIP    = '#F2F0ED';
+const DANGER  = '#EF4444';
 
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+
+// ─── Replace with your real URLs ──────────────────────────────────────────────
+const TERMS_URL   = 'https://example.com/terms';
+const PRIVACY_URL = 'https://example.com/privacy';
+
+// ─── Reusable row ─────────────────────────────────────────────────────────────
+function InfoRow({
+  label,
+  value,
+  onPress,
+  showChevron = false,
+  isLast = false,
+}: {
+  label: string;
+  value?: string;
+  onPress?: () => void;
+  showChevron?: boolean;
+  isLast?: boolean;
+}) {
+  const inner = (
+    <View style={[styles.row, !isLast && styles.rowBorder]}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowRight}>
+        {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+        {showChevron && (
+          <SymbolView
+            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+            size={13}
+            tintColor={MUTED}
+          />
+        )}
+      </View>
+    </View>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+      >
+        {inner}
+      </Pressable>
+    );
+  }
+  return inner;
+}
+
+// ─── ProfileScreen ────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+
   const { data: profile, isLoading } = useProfile();
   const { mutate: updateProfile, isPending: isSaving } = useUpdateProfile();
   const { mutate: signOut, isPending: isSigningOut } = useSignOut();
 
   const [fullName, setFullName] = useState('');
-  const [bio, setBio]           = useState('');
 
   useEffect(() => {
-    if (profile) {
-      setFullName(profile.full_name ?? '');
-      setBio(profile.bio ?? '');
-    }
+    if (profile) setFullName(profile.full_name ?? '');
   }, [profile]);
 
+  const isDirty = fullName !== (profile?.full_name ?? '');
+
   const handleSave = () => {
+    if (!isDirty) return;
     updateProfile(
-      { full_name: fullName, bio },
-      { onSuccess: () => Alert.alert('', t('profile.updateSuccess')) },
+      { full_name: fullName },
+      { onSuccess: () => Alert.alert('Saved', 'Your name has been updated.') },
     );
   };
 
   const handleSignOut = () => {
-    Alert.alert(t('auth.signOut'), 'Are you sure?', [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('auth.signOut'), style: 'destructive', onPress: () => signOut() },
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
     ]);
   };
-
-  const displayName = profile?.full_name ?? profile?.email ?? '…';
 
   if (isLoading) {
     return (
@@ -66,140 +109,87 @@ export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']}>
-        {/* ── Top bar ── */}
-        <View style={styles.topBar}>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <ThemedText style={styles.statusText}>Profile</ThemedText>
-          </View>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Settings</Text>
         </View>
       </SafeAreaView>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(insets.bottom, 16) + 72 + 24 },
+        ]}
       >
 
-        {/* ── Hero avatar ── */}
-        <View style={styles.hero}>
-          <View style={styles.avatarWrap}>
-            <Avatar uri={profile?.avatar_url} name={displayName} size={72} />
-            <View style={styles.avatarBadge}>
-              <SymbolView
-                name={{ ios: 'person.crop.circle.badge.checkmark', android: 'verified_user', web: 'verified_user' }}
-                size={13}
-                tintColor={TEXT}
-              />
-            </View>
-          </View>
-          <View style={styles.heroText}>
-            <ThemedText style={styles.heroName}>{displayName}</ThemedText>
-            <ThemedText style={styles.heroEmail}>{profile?.email}</ThemedText>
-          </View>
-        </View>
-
-        {/* ── Edit section ── */}
-        <View style={styles.sectionLabel}>
-          <View style={styles.sectionDot} />
-          <ThemedText style={styles.sectionTitle}>Edit info</ThemedText>
-        </View>
+        {/* ── Account ─────────────────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>ACCOUNT</Text>
 
         <View style={styles.card}>
-          {/* Name field */}
-          <View style={styles.fieldWrap}>
-            <View style={styles.fieldHeader}>
-              <SymbolView
-                name={{ ios: 'person', android: 'person', web: 'person' }}
-                size={13}
-                tintColor={MUTED}
-              />
-              <ThemedText style={styles.fieldLabel}>{t('profile.fullName')}</ThemedText>
-            </View>
+
+          {/* Name */}
+          <View style={[styles.fieldWrap, styles.rowBorder]}>
+            <Text style={styles.fieldLabel}>Name</Text>
             <TextInput
-              style={styles.input}
+              style={styles.fieldInput}
               value={fullName}
               onChangeText={setFullName}
               placeholder="Your name"
               placeholderTextColor={MUTED}
               autoCorrect={false}
+              returnKeyType="done"
             />
           </View>
 
-          <View style={styles.divider} />
+          {/* Email — read-only */}
+          <InfoRow
+            label="Email"
+            value={profile?.email ?? '—'}
+            isLast
+          />
 
-          {/* Bio field */}
-          <View style={styles.fieldWrap}>
-            <View style={styles.fieldHeader}>
-              <SymbolView
-                name={{ ios: 'text.alignleft', android: 'notes', web: 'notes' }}
-                size={13}
-                tintColor={MUTED}
-              />
-              <ThemedText style={styles.fieldLabel}>{t('profile.bio')}</ThemedText>
-            </View>
-            <TextInput
-              style={[styles.input, styles.inputMulti]}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="A short bio"
-              placeholderTextColor={MUTED}
-              multiline
-              numberOfLines={3}
-              autoCorrect={false}
-            />
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Save button */}
-          <Pressable
-            onPress={handleSave}
-            disabled={isSaving}
-            style={({ pressed }) => [styles.saveBtn, { opacity: isSaving || pressed ? 0.7 : 1 }]}
-          >
-            {isSaving ? (
-              <LoadingSpinner />
-            ) : (
-              <>
-                <SymbolView
-                  name={{ ios: 'checkmark', android: 'check', web: 'check' }}
-                  size={14}
-                  tintColor={TEXT}
-                />
-                <ThemedText style={styles.saveBtnText}>{t('profile.saveChanges')}</ThemedText>
-              </>
-            )}
-          </Pressable>
         </View>
 
-        {/* ── Language section ── */}
-        <View style={styles.sectionLabel}>
-          <View style={styles.sectionDot} />
-          <ThemedText style={styles.sectionTitle}>{t('profile.changeLanguage')}</ThemedText>
-        </View>
+        {/* Save */}
+        <Pressable
+          onPress={handleSave}
+          disabled={isSaving || !isDirty}
+          style={({ pressed }) => [
+            styles.saveBtn,
+            (!isDirty || isSaving) && styles.saveBtnDisabled,
+            pressed && isDirty && { opacity: 0.85 },
+          ]}
+        >
+          {isSaving ? (
+            <LoadingSpinner />
+          ) : (
+            <Text style={styles.saveBtnText}>Save changes</Text>
+          )}
+        </Pressable>
+
+        {/* ── About ───────────────────────────────────────────────────────── */}
+        <Text style={[styles.sectionLabel, { marginTop: 8 }]}>ABOUT</Text>
 
         <View style={styles.card}>
-          <View style={styles.langRow}>
-            {(['en','es','hi'] as const).map((lang) => {
-              const active = i18n.language === lang;
-              return (
-                <Pressable
-                  key={lang}
-                  onPress={() => i18n.changeLanguage(lang)}
-                  style={[styles.langBtn, active && styles.langBtnActive]}
-                >
-                  <ThemedText style={[styles.langBtnText, active && styles.langBtnTextActive]}>
-                    {t(`profile.language_${lang}`)}
-                  </ThemedText>
-                  {active && <View style={styles.langActiveDot} />}
-                </Pressable>
-              );
-            })}
-          </View>
+          <InfoRow
+            label="App version"
+            value={APP_VERSION}
+          />
+          <InfoRow
+            label="Terms & Conditions"
+            showChevron
+            onPress={() => Linking.openURL(TERMS_URL)}
+          />
+          <InfoRow
+            label="Privacy Policy"
+            showChevron
+            onPress={() => Linking.openURL(PRIVACY_URL)}
+            isLast
+          />
         </View>
 
-        {/* ── Sign out ── */}
+        {/* ── Sign out ────────────────────────────────────────────────────── */}
         <Pressable
           onPress={handleSignOut}
           disabled={isSigningOut}
@@ -207,10 +197,10 @@ export default function ProfileScreen() {
         >
           <SymbolView
             name={{ ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' }}
-            size={15}
+            size={16}
             tintColor={DANGER}
           />
-          <ThemedText style={styles.signOutText}>{t('auth.signOut')}</ThemedText>
+          <Text style={styles.signOutText}>Sign out</Text>
         </Pressable>
 
       </ScrollView>
@@ -218,138 +208,124 @@ export default function ProfileScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
   center: { alignItems: 'center', justifyContent: 'center' },
 
-  // Top bar
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 12,
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: DARK,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '300',
+    color: TEXT,
+    letterSpacing: -0.4,
   },
-  statusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: ACCENT },
-  statusText: { fontSize: 13, fontWeight: '600', color: '#FFFFFF' },
 
-  // Scroll
   content: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
-    paddingBottom: BottomTabInset + Spacing.four,
-    gap: Spacing.three,
+    paddingHorizontal: 20,
+    gap: 10,
   },
 
-  // Hero
-  hero: {
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: Spacing.two,
-  },
-  avatarWrap: { position: 'relative' },
-  avatarBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: ACCENT,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: BG,
-  },
-  heroText: { alignItems: 'center', gap: 4 },
-  heroName: { fontSize: 20, fontWeight: '700', color: TEXT, letterSpacing: -0.3 },
-  heroEmail: { fontSize: 13, color: MUTED },
-
-  // Section label
   sectionLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: -4,
-  },
-  sectionDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: ACCENT },
-  sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: MUTED,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.9,
+    marginBottom: 2,
+    marginLeft: 4,
   },
 
   // Card
   card: {
     backgroundColor: CARD,
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: 20,
     elevation: 2,
   },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: BORDER, marginHorizontal: 16 },
 
-  // Fields
-  fieldWrap: { padding: 16, gap: 8 },
-  fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: {
+  // Row (used in InfoRow)
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    minHeight: 52,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
+  },
+  rowLabel: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '400',
+    color: TEXT,
+  },
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rowValue: {
+    fontSize: 14,
+    color: MUTED,
+    fontWeight: '300',
+  },
+
+  // Name field (editable row)
+  fieldWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: MUTED,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  fieldInput: {
+    fontSize: 15,
+    fontWeight: '400',
     color: TEXT,
     backgroundColor: CHIP,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  inputMulti: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-    paddingTop: 11,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
 
   // Save button
   saveBtn: {
-    flexDirection: 'row',
+    backgroundColor: PRIMARY,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    margin: 16,
-    backgroundColor: ACCENT,
-    borderRadius: 14,
-    paddingVertical: 13,
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 3,
   },
-  saveBtnText: { fontSize: 14, fontWeight: '700', color: TEXT },
-
-  // Language
-  langRow: { flexDirection: 'row', padding: 10, gap: 8 },
-  langBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 14,
+  saveBtnDisabled: {
     backgroundColor: CHIP,
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  langBtnActive: { backgroundColor: DARK },
-  langBtnText: { fontSize: 14, fontWeight: '600', color: MUTED },
-  langBtnTextActive: { color: '#FFFFFF' },
-  langActiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ACCENT },
+  saveBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.1,
+  },
 
   // Sign out
   signOutBtn: {
@@ -358,15 +334,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: CARD,
-    borderRadius: 20,
+    borderRadius: 16,
     paddingVertical: 15,
-    borderWidth: 1,
-    borderColor: DANGER + '30',
+    marginTop: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DANGER + '40',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowRadius: 8,
     elevation: 1,
   },
-  signOutText: { fontSize: 14, fontWeight: '600', color: DANGER },
+  signOutText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: DANGER,
+  },
 });

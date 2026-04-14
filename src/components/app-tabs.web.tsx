@@ -21,7 +21,7 @@ export default function AppTabs() {
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="home" href="/" asChild>
-            <TabButton>Oracle</TabButton>
+            <TabButton>Choice</TabButton>
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>Profile</TabButton>
@@ -65,7 +65,7 @@ export function CustomTabList(props: TabListProps) {
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <ThemedText type="smallBold" style={styles.brandText}>
-          Oracle
+          Choice
         </ThemedText>
 
         {props.children}

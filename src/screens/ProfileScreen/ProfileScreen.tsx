@@ -9,20 +9,20 @@ import { useProfile, useUpdateProfile } from '@/queries/use-profile';
 import { useSignOut } from '@/queries/use-session';
 
 // ─── Design tokens (oracle theme) ────────────────────────────────────────────
-const BG      = '#F7F5F2';
-const CARD    = '#FFFFFF';
+const BG = '#F7F5F2';
+const CARD = '#FFFFFF';
 const PRIMARY = '#A3B18A'; // sage green
-const TEXT    = '#2F2F2F';
-const MUTED   = '#9E9E9E';
-const BORDER  = '#EBEBEB';
-const CHIP    = '#F2F0ED';
-const DANGER  = '#EF4444';
+const TEXT = '#2F2F2F';
+const MUTED = '#9E9E9E';
+const BORDER = '#EBEBEB';
+const CHIP = '#F2F0ED';
+const DANGER = '#EF4444';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 // ─── Replace with your real URLs ──────────────────────────────────────────────
-const TERMS_URL   = 'https://example.com/terms';
-const PRIVACY_URL = 'https://example.com/privacy';
+const TERMS_URL = 'https://docs.google.com/document/d/1n-ax51kbcNRlw6bQP8IQtEwu34dxEX0xRY1VulWpmiI/edit?usp=sharing';
+const PRIVACY_URL = 'https://docs.google.com/document/d/1qFrpHWYVPGue0tM3j_wVMLeocF5Gjk2eNKO6vTWocuc/edit?usp=sharing';
 
 // ─── Reusable row ─────────────────────────────────────────────────────────────
 function InfoRow({

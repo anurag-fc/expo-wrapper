@@ -21,7 +21,7 @@ export default function AppLayout() {
   }
 
   if (!session) {
-    return <Redirect href="/(auth)/login" />;
+    return <Redirect href="/(auth)" />;
   }
 
   // return <View style={{ backgroundColor: "black", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Text style={{ color: "white" }}>Welcome to the app!</Text></View>;

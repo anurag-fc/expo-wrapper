@@ -63,13 +63,26 @@ function Field({
 export default function LoginScreen() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  const { mutate: signIn, isPending, error } = useSignIn();
-  const apiError = error ? (error as Error).message ?? 'Invalid credentials' : null;
+  const { mutate: signIn, isPending } = useSignIn();
 
   const handleSignIn = () => {
     if (!email.trim() || !password) return;
-    signIn({ email: email.trim(), password });
+    setAuthError(null);
+    signIn(
+      { email: email.trim(), password },
+      {
+        onSuccess: (result) => {
+          if (result.error) {
+            setAuthError(result.error.message ?? 'Invalid email or password.');
+          }
+        },
+        onError: (err) => {
+          setAuthError((err as Error).message ?? 'Something went wrong. Please try again.');
+        },
+      },
+    );
   };
 
   const handleGoogle = async () => {
@@ -123,12 +136,12 @@ export default function LoginScreen() {
               <Field
                 label="Password"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(v) => { setPassword(v); setAuthError(null); }}
                 placeholder="••••••••"
                 secureTextEntry
                 returnKeyType="done"
                 onSubmitEditing={handleSignIn}
-                error={apiError}
+                error={authError}
               />
 
               {/* Sign in button */}
@@ -278,7 +291,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     backgroundColor: PRIMARY,
     borderRadius: 14,
-    paddingVertical: 15,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: PRIMARY,

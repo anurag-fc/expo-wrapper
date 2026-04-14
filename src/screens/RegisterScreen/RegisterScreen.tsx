@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     backgroundColor: PRIMARY,
     borderRadius: 14,
-    paddingVertical: 15,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: PRIMARY,

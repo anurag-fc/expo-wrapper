@@ -8,7 +8,7 @@ export default function AppTabs() {
     <Tabs
       initialRouteName="index"
       tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      screenOptions={{ headerShown: false, animation: 'fade' }}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="profile" />

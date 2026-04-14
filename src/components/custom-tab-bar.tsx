@@ -44,6 +44,81 @@ const TAB_ICONS: Record<string, IconName> = {
   profile: { ios: 'person.circle', android: 'person',       web: 'person'       },
 };
 
+// ─── Animated Tab Button ─────────────────────────────────────────────────────
+/**
+ * One shared value (0 → 1) drives everything simultaneously:
+ *   • bubble bg  : scale 0.6→1  + opacity 0→1  (spring, bouncy)
+ *   • active icon: opacity 0→1
+ *   • inactive icon: opacity 1→0
+ *   • press      : quick squish → spring pop
+ */
+function AnimatedTabButton({
+  icon, isFocused, onPress, accessibilityState,
+}: {
+  icon: IconName;
+  isFocused: boolean;
+  onPress: () => void;
+  accessibilityState?: object;
+}) {
+  const progress   = useSharedValue(isFocused ? 1 : 0);
+  const pressScale = useSharedValue(1);
+
+  useEffect(() => {
+    progress.value = withSpring(isFocused ? 1 : 0, {
+      damping: 16,
+      stiffness: 140,
+      mass: 0.9,
+    });
+  }, [isFocused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const bubbleStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ scale: 0.55 + progress.value * 0.45 }],
+  }));
+
+  const activeIconStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+  }));
+
+  const inactiveIconStyle = useAnimatedStyle(() => ({
+    opacity: 1 - progress.value,
+  }));
+
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+
+  const handlePress = () => {
+    pressScale.value = withSequence(
+      withTiming(0.84, { duration: 70 }),
+      withSpring(1, { damping: 8, stiffness: 220 }),
+    );
+    onPress();
+  };
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={styles.tab}
+      accessibilityRole="button"
+      accessibilityState={accessibilityState}
+    >
+      <Animated.View style={[styles.bubbleContainer, containerStyle]}>
+        {/* Animated active background */}
+        <Animated.View style={[styles.bubbleBg, bubbleStyle]} />
+        {/* Inactive icon — fades out */}
+        <Animated.View style={[styles.iconLayer, inactiveIconStyle]}>
+          <SymbolView name={icon} size={22} tintColor={INACTIVE} />
+        </Animated.View>
+        {/* Active icon — fades in (white) */}
+        <Animated.View style={[styles.iconLayer, activeIconStyle]}>
+          <SymbolView name={icon} size={22} tintColor="#FFFFFF" />
+        </Animated.View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 // ─── Mic Button ──────────────────────────────────────────────────────────────
 function MicButton({ isActive, onPress }: { isActive: boolean; onPress: () => void }) {
   const ring1    = useSharedValue(1);
@@ -112,10 +187,21 @@ function MicButton({ isActive, onPress }: { isActive: boolean; onPress: () => vo
 // ─── CustomTabBar ─────────────────────────────────────────────────────────────
 export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { phase, micPress } = useOracleStore();
+  const { phase, micPress, setPendingMicPress } = useOracleStore();
 
   const isListening    = phase === 'listening';
   const micInteractive = phase === 'idle' || phase === 'listening';
+
+  // If the user is on the profile tab, navigate to oracle first then start flow
+  const handleMicPress = () => {
+    const isOnOracle = state.routes[state.index]?.name === 'index';
+    if (!isOnOracle) {
+      setPendingMicPress(true);
+      navigation.navigate('index' as never);
+    } else {
+      micPress();
+    }
+  };
 
   // ── Animation: pill slides to centre when mic hides, back when it shows ────
   const pillX  = useSharedValue(0);   // translateX on the pill
@@ -176,36 +262,20 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         <Animated.View style={pillStyle}>
           <View style={styles.bar}>
             {oracleRoute && (
-              <Pressable
+              <AnimatedTabButton
+                icon={TAB_ICONS.index}
+                isFocused={state.index === oracleIdx}
                 onPress={makeOnPress(oracleRoute)}
-                style={styles.tab}
-                accessibilityRole="button"
                 accessibilityState={state.index === oracleIdx ? { selected: true } : {}}
-              >
-                <View style={[styles.bubble, state.index === oracleIdx && styles.bubbleActive]}>
-                  <SymbolView
-                    name={TAB_ICONS.index}
-                    size={22}
-                    tintColor={state.index === oracleIdx ? '#FFFFFF' : INACTIVE}
-                  />
-                </View>
-              </Pressable>
+              />
             )}
             {profileRoute && (
-              <Pressable
+              <AnimatedTabButton
+                icon={TAB_ICONS.profile}
+                isFocused={state.index === profileIdx}
                 onPress={makeOnPress(profileRoute)}
-                style={styles.tab}
-                accessibilityRole="button"
                 accessibilityState={state.index === profileIdx ? { selected: true } : {}}
-              >
-                <View style={[styles.bubble, state.index === profileIdx && styles.bubbleActive]}>
-                  <SymbolView
-                    name={TAB_ICONS.profile}
-                    size={22}
-                    tintColor={state.index === profileIdx ? '#FFFFFF' : INACTIVE}
-                  />
-                </View>
-              </Pressable>
+              />
             )}
           </View>
         </Animated.View>
@@ -218,7 +288,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           style={micStyle}
           pointerEvents={micInteractive ? 'auto' : 'none'}
         >
-          <MicButton isActive={isListening} onPress={micPress} />
+          <MicButton isActive={isListening} onPress={handleMicPress} />
         </Animated.View>
 
       </View>
@@ -259,15 +329,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bubble: {
+  // Fixed-size container that holds the animated bubble + icons
+  bubbleContainer: {
     width: BUBBLE,
     height: BUBBLE,
     borderRadius: BUBBLE / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bubbleActive: {
+  // Absolute-fill background that scales + fades in on focus
+  bubbleBg: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: BUBBLE / 2,
     backgroundColor: TAB_ACTIVE,
+  },
+  // Absolute-fill layer for each icon so they overlap and cross-fade
+  iconLayer: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Gap

@@ -18,20 +18,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOracleStore } from '@/store/oracle.store';
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
-const TAB_BG     = '#2C2C2E';
+const TAB_BG = '#2C2C2E';
 const TAB_ACTIVE = '#A3B18A';   // sage green
-const MIC_COLOR  = '#A3B18A';
-const CARD       = '#FFFFFF';
-const TEXT_DARK  = '#2F2F2F';
+const MIC_COLOR = '#A3B18A';
+const CARD = '#FFFFFF';
+const TEXT_DARK = '#2F2F2F';
 
-const INACTIVE   = 'rgba(255,255,255,0.58)'; // ← brighter inactive
+const INACTIVE = 'rgba(255,255,255,0.58)'; // ← brighter inactive
 
 // ─── Sizing ───────────────────────────────────────────────────────────────────
-const BUBBLE   = 56;                       // tab icon bubble
+const BUBBLE = 56;                       // tab icon bubble
 const PILL_PAD = 8;                        // pill padding (vertical + horizontal)
-const PILL_H   = BUBBLE + PILL_PAD * 2;   // 72 — pill height
-const MIC      = PILL_H;                  // 72 — mic matches pill exactly
-const GAP      = 10;                      // gap between pill and mic
+const PILL_H = BUBBLE + PILL_PAD * 2;   // 72 — pill height
+const MIC = PILL_H;                  // 72 — mic matches pill exactly
+const GAP = 10;                      // gap between pill and mic
 
 // When mic hides, the pill needs to shift right by half the (gap+mic) space
 // to appear visually centred on screen.
@@ -40,8 +40,8 @@ const PILL_SHIFT = (GAP + MIC) / 2;       // 41 px
 type IconName = SymbolViewProps['name'];
 
 const TAB_ICONS: Record<string, IconName> = {
-  index:   { ios: 'sparkles',      android: 'auto_awesome', web: 'auto_awesome' },
-  profile: { ios: 'person.circle', android: 'person',       web: 'person'       },
+  index: { ios: 'sparkles', android: 'auto_awesome', web: 'dark_mode' },
+  profile: { ios: 'person', android: 'person_outline', web: 'person_outline' },
 };
 
 // ─── Animated Tab Button ─────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ function AnimatedTabButton({
   onPress: () => void;
   accessibilityState?: object;
 }) {
-  const progress   = useSharedValue(isFocused ? 1 : 0);
+  const progress = useSharedValue(isFocused ? 1 : 0);
   const pressScale = useSharedValue(1);
 
   useEffect(() => {
@@ -121,15 +121,15 @@ function AnimatedTabButton({
 
 // ─── Mic Button ──────────────────────────────────────────────────────────────
 function MicButton({ isActive, onPress }: { isActive: boolean; onPress: () => void }) {
-  const ring1    = useSharedValue(1);
-  const ring2    = useSharedValue(1);
+  const ring1 = useSharedValue(1);
+  const ring2 = useSharedValue(1);
   const btnScale = useSharedValue(1);
 
   useEffect(() => {
     if (isActive) {
       ring1.value = withRepeat(withSequence(
-        withTiming(1.5,  { duration: 900, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.0,  { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.5, { duration: 900, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0, { duration: 900, easing: Easing.inOut(Easing.ease) }),
       ), -1, false);
       ring2.value = withRepeat(
         withDelay(450, withSequence(
@@ -141,17 +141,17 @@ function MicButton({ isActive, onPress }: { isActive: boolean; onPress: () => vo
     } else {
       cancelAnimation(ring1);
       cancelAnimation(ring2);
-      ring1.value    = withTiming(1, { duration: 400 });
-      ring2.value    = withTiming(1, { duration: 400 });
+      ring1.value = withTiming(1, { duration: 400 });
+      ring2.value = withTiming(1, { duration: 400 });
       btnScale.value = withTiming(1, { duration: 300 });
     }
   }, [isActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const r1Style  = useAnimatedStyle(() => ({
+  const r1Style = useAnimatedStyle(() => ({
     transform: [{ scale: ring1.value }],
     opacity: Math.max(0, (2 - ring1.value) * 0.22),
   }));
-  const r2Style  = useAnimatedStyle(() => ({
+  const r2Style = useAnimatedStyle(() => ({
     transform: [{ scale: ring2.value }],
     opacity: Math.max(0, (2 - ring2.value) * 0.13),
   }));
@@ -172,8 +172,8 @@ function MicButton({ isActive, onPress }: { isActive: boolean; onPress: () => vo
           <SymbolView
             name={
               isActive
-                ? { ios: 'stop.fill', android: 'stop', web: 'stop' }
-                : { ios: 'mic.fill',  android: 'mic',  web: 'mic'  }
+                ? { ios: 'square.fill', android: 'stop', web: 'stop' }
+                : { ios: 'waveform', android: 'graphic_eq', web: 'graphic_eq' }
             }
             size={24}
             tintColor={isActive ? '#FFFFFF' : TEXT_DARK}
@@ -189,7 +189,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { phase, micPress, setPendingMicPress } = useOracleStore();
 
-  const isListening    = phase === 'listening';
+  const isListening = phase === 'listening';
   const micInteractive = phase === 'idle' || phase === 'listening';
 
   // If the user is on the profile tab, navigate to oracle first then start flow
@@ -204,9 +204,9 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   };
 
   // ── Animation: pill slides to centre when mic hides, back when it shows ────
-  const pillX  = useSharedValue(0);   // translateX on the pill
-  const micOp  = useSharedValue(1);   // opacity  of the mic
-  const micSc  = useSharedValue(1);   // scale    of the mic
+  const pillX = useSharedValue(0);   // translateX on the pill
+  const micOp = useSharedValue(1);   // opacity  of the mic
+  const micSc = useSharedValue(1);   // scale    of the mic
 
   useEffect(() => {
     if (micInteractive) {
@@ -236,10 +236,10 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   }));
 
   // ── Route helpers ─────────────────────────────────────────────────────────
-  const oracleRoute  = state.routes.find(r => r.name === 'index');
+  const oracleRoute = state.routes.find(r => r.name === 'index');
   const profileRoute = state.routes.find(r => r.name === 'profile');
-  const oracleIdx    = state.routes.findIndex(r => r.name === 'index');
-  const profileIdx   = state.routes.findIndex(r => r.name === 'profile');
+  const oracleIdx = state.routes.findIndex(r => r.name === 'index');
+  const profileIdx = state.routes.findIndex(r => r.name === 'profile');
 
   function makeOnPress(route: (typeof state.routes)[0]) {
     return () => {

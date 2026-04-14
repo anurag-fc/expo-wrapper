@@ -6,14 +6,15 @@ import { CustomTabBar } from './custom-tab-bar';
 export default function AppTabs() {
   return (
     <Tabs
-      initialRouteName="explore"
+      initialRouteName="index"
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index" />
-      <Tabs.Screen name="explore" />
-      <Tabs.Screen name="notifications" />
       <Tabs.Screen name="profile" />
+      {/* Hidden from tab bar but kept for routing compatibility */}
+      <Tabs.Screen name="explore"       options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -14,24 +14,14 @@ import { ExternalLink } from './external-link';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useNotificationStore } from '@/store/notification.store';
-
 export default function AppTabs() {
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
-
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
-          <TabTrigger name="notifications" href="/notifications" asChild>
-            <TabButton badge={unreadCount > 0 ? unreadCount : undefined}>Alerts</TabButton>
+            <TabButton>Oracle</TabButton>
           </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
             <TabButton>Profile</TabButton>
@@ -75,7 +65,7 @@ export function CustomTabList(props: TabListProps) {
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Wrapper
+          Oracle
         </ThemedText>
 
         {props.children}

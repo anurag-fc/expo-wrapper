@@ -70,6 +70,23 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      questions: {
+        Row: {
+          id: string;
+          user_id: string;
+          question_text: string;
+          answer: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          question_text: string;
+          answer: string;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
